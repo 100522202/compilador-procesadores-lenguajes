@@ -70,6 +70,7 @@ typedef struct s_attr {
 %token WHILE
 %token IF ELSE
 %token FOR SWITCH CASE DEFAULT BREAK RETURN
+%token PRINTF PUTS
 
 /* Definición de Tokens para Operadores Lógicos y Relacionales */
 %token AND OR NOT IGUAL DIFERENTE MENOR_IGUAL MAYOR_IGUAL
@@ -305,29 +306,20 @@ sentencia:
                                                                             sprintf (temp, "(return-from %s %s)", current_func, $2.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
-                  | '@' expresion                                            {
-                                                                            sprintf (temp, "(print %s)", $2.code) ;
+                  | PUTS '(' STRING ')'                                      {
+                                                                            char *esc = escape_lisp_string ($3.code) ;
+                                                                            sprintf (temp, "(print \"%s\")", esc) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
-                  | IDENTIF '(' STRING ')'                                   {
-                                                                            if (strcmp ($1.code, "puts") == 0) {
-                                                                                char *esc = escape_lisp_string ($3.code) ;
-                                                                                sprintf (temp, "(print \"%s\")", esc) ;
-                                                                                $$.code = gen_code (temp) ;
-                                                                            } else if (strcmp ($1.code, "printf") == 0) {
-                                                                                $$.code = gen_code ("") ;
-                                                                            } else {
-                                                                                printf ("Error: funcion no soportada\n") ;
-                                                                                $$.code = gen_code ("") ;
-                                                                            }
+                  | PRINTF '(' STRING ')'                                    {
+                                                                            $$.code = gen_code ("") ;
                                                                         }
-                  | IDENTIF '(' STRING ',' lista_argumentos ')'              {
-                                                                            if (strcmp ($1.code, "printf") == 0) {
-                                                                                $$.code = translate_printf ("", $5.code) ;
-                                                                            } else {
-                                                                                printf ("Error: funcion no soportada\n") ;
-                                                                                $$.code = gen_code ("") ;
-                                                                            }
+                  | PRINTF '(' STRING ',' lista_argumentos ')'               {
+                                                                            $$.code = translate_printf ($3.code, $5.code) ;
+                                                                        }
+                  | PRINTF '(' expresion ')'                                 {
+                                                                            sprintf (temp, "(princ %s)", $3.code) ;
+                                                                            $$.code = gen_code (temp) ;
                                                                         }
                   | IDENTIF '(' lista_expr ')'                               {
                                                                             if (strlen($3.code) == 0)
@@ -381,6 +373,11 @@ for_step:
                                                                                 fprintf (stderr, "Error: en for solo se permite INC(x) o DEC(x)\n") ;
                                                                                 sprintf (temp, "(setf %s %s)", final_id, final_id) ;
                                                                             }
+                                                                            $$.code = gen_code (temp) ;
+                                                                        }
+                  | IDENTIF '=' expresion                                    {
+                                                                            char *final_id = transform_id ($1.code) ;
+                                                                            sprintf (temp, "(setf %s %s)", final_id, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
 ;
@@ -543,91 +540,19 @@ void add_printf_piece (char *dest, int *npieces, const char *piece)
 char *translate_printf (char *format, char *args)
 {
     char result[16384] ;
-    char literal[4096] ;
     char piece[8192] ;
     char final_code[20000] ;
     char *cursor ;
     char *arg ;
-    char *esc ;
-    int i = 0 ;
-    int l = 0 ;
     int npieces = 0 ;
 
+    // In the simplified subset from the statement, printf's first parameter
+    // (format string) is recognized but omitted from the translation.
+    (void) format ;
+
     result[0] = '\0' ;
-    literal[0] = '\0' ;
     cursor = args ;
 
-    while (format[i] != '\0') {
-
-        if (format[i] == '%' && format[i + 1] != '\0') {
-
-            if (l > 0) {
-                literal[l] = '\0' ;
-                esc = escape_lisp_string (literal) ;
-                sprintf (piece, "(princ \"%s\")", esc) ;
-                add_printf_piece (result, &npieces, piece) ;
-                l = 0 ;
-                literal[0] = '\0' ;
-            }
-
-            if (format[i + 1] == '%') {
-                literal[l++] = '%' ;
-                i += 2 ;
-                continue ;
-            }
-
-            if (format[i + 1] == 'd' || format[i + 1] == 'i' ||
-                format[i + 1] == 's' || format[i + 1] == 'c') {
-                arg = next_printf_arg (&cursor) ;
-                if (arg == NULL)
-                    arg = "0" ;
-                sprintf (piece, "(princ %s)", arg) ;
-                add_printf_piece (result, &npieces, piece) ;
-                i += 2 ;
-                continue ;
-            }
-        }
-
-        if (format[i] == '\\' && format[i + 1] != '\0') {
-
-            if (format[i + 1] == 'n') {
-                if (l > 0) {
-                    literal[l] = '\0' ;
-                    esc = escape_lisp_string (literal) ;
-                    sprintf (piece, "(princ \"%s\")", esc) ;
-                    add_printf_piece (result, &npieces, piece) ;
-                    l = 0 ;
-                    literal[0] = '\0' ;
-                }
-
-                add_printf_piece (result, &npieces, "(print \"\")") ;
-                i += 2 ;
-                continue ;
-            }
-
-            if (format[i + 1] == 't') {
-                literal[l++] = '\t' ;
-                i += 2 ;
-                continue ;
-            }
-
-            literal[l++] = format[i + 1] ;
-            i += 2 ;
-            continue ;
-        }
-
-        literal[l++] = format[i++] ;
-    }
-
-    if (l > 0) {
-        literal[l] = '\0' ;
-        esc = escape_lisp_string (literal) ;
-        sprintf (piece, "(princ \"%s\")", esc) ;
-        add_printf_piece (result, &npieces, piece) ;
-    }
-
-    // In this practice subset, the format string can be ignored.
-    // Print any remaining arguments in order.
     while ((arg = next_printf_arg (&cursor)) != NULL) {
         sprintf (piece, "(princ %s)", arg) ;
         add_printf_piece (result, &npieces, piece) ;
@@ -650,6 +575,8 @@ typedef struct s_keyword {
 
 t_keyword keywords [] = {
     "main",  MAIN,
+    "printf", PRINTF,
+    "puts", PUTS,
     "int",   INTEGER,
     "while", WHILE,
     "if",    IF,
