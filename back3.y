@@ -88,15 +88,7 @@ expression1:  expression                        { ; }  // Lisp can evaluate arit
 
             | '(' MAIN ')'                      { printf (" main\n") ; } // call to the main function 
 
-            /* REGLA PARA LLAMADA A OTRAS FUNCIONES (con y sin argumentos) */
-            | '(' IDENTIF ')'                   { printf (" %s ", $2.code) ; }
-            | '(' IDENTIF exprSeq ')' { printf (" %s ", $2.code) ; }
-
             | '(' DEFUN MAIN                    { printf(" : main "); } 
-                '(' ')' exprSeq ')'             { printf(" ; \n "); }
-
-            /* REGLA PARA DEFUN GENÉRICO */
-            | '(' DEFUN IDENTIF                                  { printf(" : %s ", $3.code); } 
                 '(' ')' exprSeq ')'             { printf(" ; \n "); }
 
 // In real Lisp some expressions like if or Loop-While-Do are only permitted inside defun definitions (level 2 expressions) ==> Future ToDo
