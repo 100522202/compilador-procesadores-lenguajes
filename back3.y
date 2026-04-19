@@ -1,3 +1,6 @@
+/*211, Ivan Ciller Lopez, Mohamed Rida Chahdaoui Moujib, */
+/* 100522245@alumnos.uc3m.es, 100522202@alumnos.uc3m.es*/
+
 %{                          // SECTION 1 Declarations for C-Bison
 #include <stdio.h>
 #include <ctype.h>            // tolower()
