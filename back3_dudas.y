@@ -67,9 +67,10 @@ exprSeq:      expression1                       { ; }      // level 1 expression
                  r_exprSeq                      { ; }
             ;
 
-lista_argumentos:  IDENTIF lista_argumentos  { ; }
-                   | /* vacio */      { ; }
-                   ;
+lista_argumentos:  IDENTIF lista_argumentos 
+                   { printf(" %s ! ", $1.code); } /* Sacamos de la pila y guardamos */
+                 | /* vacio */ 
+                 ;
 
 
 r_exprSeq:    exprSeq                           { ; }
@@ -101,8 +102,9 @@ expression1:  expression                        { ; }  // Lisp can evaluate arit
                 '(' ')' exprSeq ')'             { printf(" ; \n "); }
 
             /* REGLA PARA DEFUN GENÉRICO */
-            | '(' DEFUN IDENTIF                                  { printf(" : %s ", $3.code); } 
-                '(' lista_argumentos ')' exprSeq ')'             { printf(" ; \n "); }
+            | '(' DEFUN IDENTIF { printf(" : %s ", $3.code); } 
+                '(' lista_argumentos ')' 
+                exprSeq ')' { printf(" ; \n "); }
 
 // In real Lisp some expressions like if or Loop-While-Do are only permitted inside defun definitions (level 2 expressions) ==> Future ToDo
 // Level 1 and common expressions (arithmetic etc.) are also permitted inside a defun definition
