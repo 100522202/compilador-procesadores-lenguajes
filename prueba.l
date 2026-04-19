@@ -1,30 +1,11 @@
-(setq a 0)
-(setq suma 0)
 (defun main ()
-
-   (setf a 1)
-   (setf suma 0)
-   (loop while (<= a 10) do
-   (setf suma (+ suma a))
-   (if (= (mod a 2) 0) (progn
-   (progn
-   (princ "par: ")
-   (princ a)
-   (print "")
-)
-   ) (progn
-   (progn
-   (princ "impar: ")
-   (princ a)
-   (print "")
-)
-   ))
-   (setf a (+ a 1))
+(setq main_x 0)(setq main_fact 0)
+   (setf main_x 5)
+   (setf main_fact 1)
+   (princ main_x)
+   (loop while (> main_x 0) do
+   (setf main_x (- main_x 1))
    )
-   (progn
-   (princ "suma=")
-   (princ suma)
-   (print "")
+   
+   (princ main_fact)
 )
-)
- (main)

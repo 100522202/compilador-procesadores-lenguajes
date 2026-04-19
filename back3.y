@@ -1,77 +1,75 @@
-/* Grupo XX - RELLENAR_NOMBRE_1, RELLENAR_NOMBRE_2 */
-/* correo1@ejemplo.com correo2@ejemplo.com */
-
 %{                          // SECTION 1 Declarations for C-Bison
 #include <stdio.h>
 #include <ctype.h>            // tolower()
-#include <string.h>           // strcmp()
+#include <string.h>           // strcmp() 
 #include <stdlib.h>           // exit()
 
-#define FF fflush(stdout);    // to force immediate printing
+#define FF fflush(stdout);    // to force immediate printing 
 
 int yylex () ;
 void yyerror (char *) ;
 char *my_malloc (int) ;
 
+// Not needed using Direct Translation:
 char *gen_code (char *) ;
+char *int_to_string (int) ;
+char *char_to_string (char) ;
+
+char temp [2048] ;
+
 
 // Definitions for explicit attributes
+
 typedef struct s_attr {
-    int value ;    // - Numeric value of a NUMBER
-    char *code ;   // - IDENTIFIER names, strings and other translations
+    int value ;    // - Numeric value of a NUMBER 
+    char *code ;   // - to pass IDENTIFIER names, and other translations 
 } t_attr ;
 
 #define YYSTYPE t_attr     // stack of PDA has type t_attr
-
-// Track already-declared global variables to avoid redeclaring them with "variable".
-typedef struct s_var {
-    char *name ;
-    struct s_var *next ;
-} t_var ;
-
-static t_var *declared_vars = NULL ;
-
-int is_declared (char *name) ;
-void declare_var (char *name) ;
 
 %}
 
 // Definitions for explicit attributes
 
-%token NUMBER
-%token IDENTIF
-%token STRING
-
-%token MAIN
-%token WHILE
+%token NUMBER        
+%token IDENTIF       // Identifier=variable
+%token STRING        // token for string type
+%token MAIN          // token for keyword main // main is not predefined in Lisp but we will use it as a keyword0+
+%token WHILE         // token for keyword while
 %token LOOP
 %token DO
 %token SETQ
-%token SETF
-%token DEFUN
-%token PRINT
+%token SETF 
+%token DEFUN     
+%token PRINT  
 %token PRINC
 %token AND
 %token OR
-%token NOT
-%token IF
-%token PROGN
 %token MOD
+%token NOT
+%token IF 
+%token PROGN
 
-%token LE     // <=
-%token GE     // >=
-%token NE     // /= or !=
-%token EQ     // ==
+%token MENOR_IGUAL     // <=
+%token MAYOR_IGUAL     // >=
+%token DISTINTO     // /=
 
-%%
 
-axiom:        exprSeq                           { ; }
+// %prec section not needed in LISP
+
+
+%%                            // Section 3 Grammar - Semantic Actions
+axiom:        exprSeq                           { printf(" main\n"); }      // A Lisp program contains a sequence of at least one expression
             ;
 
 
-exprSeq:      form                              { ; }
+exprSeq:      expression1                       { ; }      // level 1 expressions must exclude specific level 2 expressions. ToDo in the Future
                  r_exprSeq                      { ; }
             ;
+
+lista_argumentos:  IDENTIF lista_argumentos  { ; }
+                   | /* vacio */      { ; }
+                   ;
 
 
 r_exprSeq:    exprSeq                           { ; }
@@ -79,117 +77,134 @@ r_exprSeq:    exprSeq                           { ; }
             ;
 
 
-exprSeqOpt:   exprSeq                           { ; }
-            |  /* lambda */                     { ; }
-            ;
+expression1:  expression                        { ; }  // Lisp can evaluate arithmetical (and similar) expressions in REPL mode
+                                                       // REPL Mode should print out the evaluated expressions ==> Future TODO for the Forth translation
 
+            | '(' SETQ IDENTIF { printf(" variable %s ", $3.code); } number ')' { printf(" %s ! ", $3.code); }  // This is the declaration of a variable which in Forth has to be of global scope
+                                                                                                      
+            | '(' SETF IDENTIF expression ')'                { printf(" %s ! ", $3.code); }    // Using a variable as receiver requires adding the store operator (!) in Forth 
 
-form:         expression                        { ; }  // Lisp REPL-like arithmetic or boolean expression
+            | '(' PRINT STRING ')'              { printf(" .\" %s\" cr ", $3.code); }
 
-            | '(' SETQ IDENTIF expression ')'   {
-                    if (!is_declared ($3.code)) {
-                        printf (" variable %s ", $3.code) ;
-                        declare_var ($3.code) ;
-                    }
-                    printf (" %s ! ", $3.code) ;
-                }
+            | '(' PRINC expression ')'          { printf(" . "); }    // Princ should be able to print both expreesions and strings
+            | '(' PRINC STRING ')'              { printf(" .\" %s\"  ", $3.code); }
+           
+            | '(' PROGN exprSeq ')'             { ; }
 
-            | '(' SETF IDENTIF expression ')'   { printf (" %s ! ", $3.code) ; }
+            | '(' MAIN ')'                      { printf (" main\n") ; } // call to the main function 
 
-            | '(' PRINT STRING ')'              { printf (" .\" %s\" cr ", $3.code) ; }
-            | '(' PRINT expression ')'          { printf (" . cr ") ; }
-
-            | '(' PRINC STRING ')'              { printf (" .\" %s\" ", $3.code) ; }
-            | '(' PRINC expression ')'          { printf (" . ") ; }
-
-            | '(' PROGN exprSeqOpt ')'          { ; }
-
-            | '(' MAIN ')'                      { printf (" main ") ; }
+            /* REGLA PARA LLAMADA A OTRAS FUNCIONES (con y sin argumentos) */
             | '(' IDENTIF ')'                   { printf (" %s ", $2.code) ; }
+            | '(' IDENTIF exprSeq ')' { printf (" %s ", $2.code) ; }
 
-            | '(' DEFUN MAIN                    { printf (" : main ") ; }
-                '(' ')' exprSeqOpt ')'          { printf (" ; ") ; }
+            | '(' DEFUN MAIN                    { printf(" : main "); } 
+                '(' ')' exprSeq ')'             { printf(" ; \n "); }
 
-            | '(' LOOP WHILE                    { printf (" begin ") ;  }
-                 expression                     { printf (" while ") ; }
-                 DO exprSeqOpt ')'              { printf (" repeat ") ; }
+            /* REGLA PARA DEFUN GENÉRICO (AÑADIR ESTA) */
+            | '(' DEFUN IDENTIF                                  { printf(" : %s ", $3.code); } 
+                '(' lista_argumentos ')' exprSeq ')'             { printf(" ; \n "); }
 
-            | '(' ifHead  form ')'              { printf (" then ") ; }
+// In real Lisp some expressions like if or Loop-While-Do are only permitted inside defun definitions (level 2 expressions) ==> Future ToDo
+// Level 1 and common expressions (arithmetic etc.) are also permitted inside a defun definition
 
-            | '(' ifHead  form                  { printf (" else ") ; }
-                 form ')'                       { printf (" then ") ; }
+            | '(' LOOP WHILE                    { printf(" BEGIN ");  }  
+                 expression                     { printf(" WHILE "); } 
+                 DO exprSeq ')'                 { printf(" REPEAT ");  }
+
+            | '(' ifHead  expression1 ')'       { printf (" THEN\n") ; }     // If Expression then Expression1
+                                                                             // ifHead is used to avoid conflicts through partial factorization
+
+            | '(' ifHead  expression1           { printf (" ELSE\n") ; }     // If Expression then Expression1 else Expression1
+                 expression1 ')'                {  printf (" THEN\n") ; }    // more than one expression per then or else branch are only allowed nesting them within a PROGN expression
             ;
 
 
-ifHead:       IF expression                     { printf (" if ") ; }
+ifHead:       IF expression                     { printf (" IF ") ; }        // Real Lisp restricts if conditions to Boolean type expressions (excluding base operands?) ==> Future TOOD
             ;
 
 
-expression:   operand                                   { ; }
+expression:   operand                                   { ; }                // Common expressions combine arithmetic, relational and boolean expressions, including base operands.
 
+            | '(' '-' expression expression ')'         { printf (" - ") ; }      // binary minus operator 
             | '(' '+' expression expression ')'         { printf (" + ") ; }
-            | '(' '-' expression expression ')'         { printf (" - ") ; }      // binary minus operator
             | '(' '*' expression expression ')'         { printf (" * ") ; }
             | '(' '/' expression expression ')'         { printf (" / ") ; }
             | '(' MOD expression expression ')'         { printf (" mod ") ; }
-
+            | '(' DISTINTO expression expression ')'    { printf (" = 0= ") ; }
+            | '(' NOT expression ')'                    { printf (" 0= ") ; }
             | '(' AND expression expression ')'         { printf (" and ") ; }
             | '(' OR expression expression ')'          { printf (" or ") ; }
-            | '(' NOT expression ')'                    { printf (" 0= ") ; }
-
-            | '(' '<' expression expression ')'         { printf (" < ") ; }
-            | '(' LE expression expression ')'          { printf (" <= ") ; }
-            | '(' '>' expression expression ')'         { printf (" > ") ; }
-            | '(' GE expression expression ')'          { printf (" >= ") ; }
             | '(' '=' expression expression ')'         { printf (" = ") ; }
-            | '(' EQ expression expression ')'          { printf (" = ") ; }
-            | '(' NE expression expression ')'          { printf (" = 0= ") ; }
+            | '(' '<' expression expression ')'         { printf (" < ") ; }
+            | '(' MENOR_IGUAL expression expression ')' { printf (" <= ") ; }
+            | '(' '>' expression expression ')'         { printf (" > ") ; }
+            | '(' MAYOR_IGUAL expression expression ')' { printf (" >= ") ; }
 
-            | '(' '-' expression ')'                    { printf (" negate ") ; }  // unary minus operator
+/* - * / MOD AND OR > < GE LE ... NOT */
+
+            | '(' '-' expression ')'                    { printf (" negate ") ; } // Unary minus operator in Lisp
             ;
 
 
-operand:      IDENTIF                                  { printf (" %s @ ", $1.code) ; }
-            | number                                   { ; }
+operand:      IDENTIF                            { printf (" %s @ ", $1.code) ; } // To use a variable as an operand requires adding the fetch operator (@)
+            | number                             { ; }
             ;
 
 
-number:       NUMBER                                   { printf (" %d ", $1.value) ; }
+number:       NUMBER                             { printf (" %d ", $1.value) ; }  // number is an auxiliary Non Terminal to be used in the setq initialization
             ;
 
 
-%%
+%%                            // SECTION 4    Code in C
 
 int n_line = 1 ;
 
 void yyerror (char *message)
 {
     fprintf (stderr, "%s in line %d\n", message, n_line) ;
-    printf ("\n") ;
+    printf ( "\n") ;
 }
 
-char *gen_code (char *name)   // copy the argument to a string in dynamic memory
+char *int_to_string (int n)
 {
+    char temp [1024] ;
+
+    sprintf (temp, "%d", n) ;
+
+    return gen_code (temp) ;
+}
+
+char *char_to_string (char c)
+{
+    char temp [1024] ;
+
+    sprintf (temp, "%c", c) ;
+
+    return gen_code (temp) ;
+}
+
+char *gen_code (char *name)   // copy the argument to an  
+{                             // string in dynamic memory  
     char *p ;
     int l ;
-
-    l = strlen (name) + 1 ;
+	
+    l = strlen (name)+1 ;
     p = (char *) my_malloc (l) ;
     strcpy (p, name) ;
-
+	
     return p ;
 }
 
-char *my_malloc (int nbytes)     // reserve n bytes of dynamic memory
+char *my_malloc (int nbytes)     // reserve n bytes of dynamic memory 
 {
     char *p ;
-    static long int nb = 0 ;     // used to count the memory
-    static int nv = 0 ;          // required in total
+    static long int nb = 0 ;     // used to count the memory  
+    static int nv = 0 ;          // required in total 
 
     p = malloc (nbytes) ;
     if (p == NULL) {
       fprintf (stderr, "No memory left for additional %d bytes\n", nbytes) ;
-      fprintf (stderr, "%ld bytes reserved in %d calls \n", nb, nv) ;
+      fprintf (stderr, "%ld bytes reserved in %d calls \n", nb, nv) ;  
       exit (0) ;
     }
     nb += (long) nbytes ;
@@ -198,76 +213,50 @@ char *my_malloc (int nbytes)     // reserve n bytes of dynamic memory
     return p ;
 }
 
-int is_declared (char *name)
-{
-    t_var *it = declared_vars ;
-
-    while (it != NULL) {
-        if (strcmp (it->name, name) == 0) {
-            return 1 ;
-        }
-        it = it->next ;
-    }
-
-    return 0 ;
-}
-
-void declare_var (char *name)
-{
-    t_var *new_var = (t_var *) my_malloc (sizeof (t_var)) ;
-
-    new_var->name = gen_code (name) ;
-    new_var->next = declared_vars ;
-    declared_vars = new_var ;
-}
 
 
 /***************************************************************************/
 /***************************** Keyword Section *****************************/
 /***************************************************************************/
 
-typedef struct s_keyword { // reserved words and multi-char operators
+typedef struct s_keyword { // for the reserved words of C  
     char *name ;
     int token ;
 } t_keyword ;
 
-t_keyword keywords [] = {
-    {"main",        MAIN},
-    {"defun",       DEFUN},
-    {"setq",        SETQ},
-    {"setf",        SETF},
-    {"print",       PRINT},
-    {"princ",       PRINC},
-    {"loop",        LOOP},
-    {"while",       WHILE},
-    {"do",          DO},
-    {"and",         AND},
-    {"or",          OR},
-    {"not",         NOT},
-    {"if",          IF},
-    {"progn",       PROGN},
-    {"mod",         MOD},
-
-    {"<=",          LE},
-    {">=",          GE},
-    {"/=",          NE},
-    {"!=",          NE},
-    {"==",          EQ},
-    {"&&",          AND},
-    {"||",          OR},
-
-    {NULL,          0}
+t_keyword keywords [] = {     // define the keywords 
+    "main",        MAIN,      // and their associated token  
+    "defun",       DEFUN,
+    "print",       PRINT,
+    "princ",       PRINC,
+    "loop",        LOOP,
+    "while",       WHILE,
+    "do",          DO,
+    "and",         AND,
+    "or",          OR,
+    "mod",         MOD,
+    "not",         NOT,
+    "if",          IF,
+    "progn",       PROGN,
+    "<=",          MENOR_IGUAL,
+    ">=",          MAYOR_IGUAL,
+    "/=",          DISTINTO,
+    "setq",        SETQ,
+    "setf",        SETF,
+    NULL,          0          // 0 to mark the end of the table
 } ;
 
 t_keyword *search_keyword (char *symbol_name)
-{
+{                       // Search symbol names in the keyword table
+                        // and return a pointer to token register
     int i ;
     t_keyword *sim ;
 
     i = 0 ;
     sim = keywords ;
     while (sim [i].name != NULL) {
-        if (strcmp (sim [i].name, symbol_name) == 0) {
+	    if (strcmp (sim [i].name, symbol_name) == 0) {
+                                   // strcmp(a, b) returns == 0 if a==b  
             return &(sim [i]) ;
         }
         i++ ;
@@ -276,7 +265,7 @@ t_keyword *search_keyword (char *symbol_name)
     return NULL ;
 }
 
-
+ 
 /***************************************************************************/
 /******************** Section for the Lexical Analyzer  ********************/
 /***************************************************************************/
@@ -284,46 +273,42 @@ t_keyword *search_keyword (char *symbol_name)
 int yylex ()
 {
     int i ;
-    int c ;
-    int cc ;
-    char expandable_ops [] = "!<>=|%&/-*+" ;
+    unsigned char c ;
+    unsigned char cc ;
+    char expandable_ops [] =  "!<>=|%&/-*+" ;
     char temp_str [256] ;
     t_keyword *symbol ;
 
-    do {
-        c = getchar () ;
-        if (c == '#') { // Ignore lines starting with # (#define, #include)
-            do {
-                c = getchar () ;
-            } while (c != '\n') ;
-        }
-        if (c == '/') { // character / can be the beginning of a comment.
-            cc = getchar () ;
-            if (cc != '/') {
-                ungetc (cc, stdin) ;
-            } else {
-                c = getchar () ;
-                if (c == '@') { // Lines starting with //@ are transcribed as inline output
-                    do {
-                        c = getchar () ;
-                        putchar (c) ;
+    do { 
+        c = getchar () ; 
+        if (c == '#') { // Ignore the lines starting with # (#define, #include) 
+            do { // WARNING that it may malfunction if a line contains # 
+                c = getchar () ; 
+            } while (c != '\n') ; 
+        } 
+        if (c == '/') { // character / can be the beginning of a comment. 
+            cc = getchar () ; 
+            if (cc != '/') { // If the following char is / is a comment, but.... 
+                ungetc (cc, stdin) ; 
+            } else { 
+                c = getchar () ; // ... 
+                if (c == '@') { // Lines starting with //@ are transcribed
+                    do { // This is inline code (embedded code in C).
+                        c = getchar () ; 
+                        putchar (c) ; 
                     } while (c != '\n' && c != EOF) ;
                     if (c == EOF) {
                         ungetc (c, stdin) ;
-                    }
-                } else { // comment, ignore the line
-                    while (c != '\n' && c != EOF) {
-                        c = getchar () ;
-                    }
-                    if (c == EOF) {
-                        ungetc (c, stdin) ;
-                    }
-                }
-            }
-        }
-        if (c == '\n') {
-            n_line++ ;
-        }
+                    } 
+                } else { // ==> comment, ignore the line 
+                    while (c != '\n') { 
+                        c = getchar () ; 
+                    } 
+                } 
+            } 
+        } 
+        if (c == '\n') 
+            n_line++ ; 
     } while (c == ' ' || c == '\n' || c == 10 || c == 13 || c == '\t') ;
 
     if (c == '\"') {
@@ -331,22 +316,19 @@ int yylex ()
         do {
             c = getchar () ;
             temp_str [i++] = c ;
-        } while (c != '\"' && c != EOF && i < 255) ;
-
+        } while (c != '\"' && i < 255) ;
         if (i == 256) {
-            printf ("WARNING: string with more than 255 characters in line %d\n", n_line) ;
-        }
-
+            printf ("WARNING: string with more than 255 characters in line %d\n", n_line) ; 
+        } // we should read until the next “, but, what if it is  missing? 
         temp_str [--i] = '\0' ;
         yylval.code = gen_code (temp_str) ;
         return (STRING) ;
     }
 
-    if (c >= '0' && c <= '9') {
+    if (c == '.' || (c >= '0' && c <= '9')) {
         ungetc (c, stdin) ;
-        if (scanf ("%d", &yylval.value) != 1) {
-            yylval.value = 0 ;
-        }
+        scanf ("%d", &yylval.value) ;
+//         printf ("\nDEV: NUMBER %d\n", yylval.value) ;       
         return NUMBER ;
     }
 
@@ -354,21 +336,24 @@ int yylex ()
         i = 0 ;
         while (((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
             (c >= '0' && c <= '9') || c == '_') && i < 255) {
-            temp_str [i++] = tolower (c) ; // all to small letters
-            c = getchar () ;
-        }
-        temp_str [i] = '\0' ;
-        ungetc (c, stdin) ;
+        temp_str [i++] = tolower (c) ; // ALL TO SMALL LETTERS
+        c = getchar () ; 
+    } 
+    temp_str [i] = '\0' ; // End of string  
+    ungetc (c, stdin) ; // return excess char  
 
-        yylval.code = gen_code (temp_str) ;
-        symbol = search_keyword (yylval.code) ;
-        if (symbol == NULL) {
+    yylval.code = gen_code (temp_str) ; 
+    symbol = search_keyword (yylval.code) ;
+    if (symbol == NULL) { // is not reserved word -> iderntifrier  
+//               printf ("\nDEV: IDENTIF %s\n", yylval.code) ;    // PARA DEPURAR
             return (IDENTIF) ;
+        } else {
+//               printf ("\nDEV: OTRO %s\n", yylval.code) ;       // PARA DEPURAR
+            return (symbol->token) ;
         }
-        return (symbol->token) ;
     }
 
-    if (strchr (expandable_ops, c) != NULL) {
+    if (strchr (expandable_ops, c) != NULL) { // // look for c in expandable_ops
         cc = getchar () ;
         sprintf (temp_str, "%c%c", (char) c, (char) cc) ;
         symbol = search_keyword (temp_str) ;
@@ -376,13 +361,16 @@ int yylex ()
             ungetc (cc, stdin) ;
             yylval.code = NULL ;
             return (c) ;
+        } else {
+            yylval.code = gen_code (temp_str) ; // although it is not used
+            return (symbol->token) ;
         }
-        yylval.code = gen_code (temp_str) ;
-        return (symbol->token) ;
     }
 
+//    printf ("\nDEV: LITERAL %d #%c#\n", (int) c, c) ;      // PARA DEPURAR
     if (c == EOF || c == 255 || c == 26) {
-        return 0 ;
+//         printf ("tEOF ") ;                                // PARA DEPURAR
+        return (0) ;
     }
 
     return c ;
@@ -392,6 +380,4 @@ int yylex ()
 int main ()
 {
     yyparse () ;
-    printf ("\n") ;
-    return 0 ;
 }
