@@ -59,18 +59,13 @@ typedef struct s_attr {
 
 
 %%                            // Section 3 Grammar - Semantic Actions
-axiom:        exprSeq                           { printf(" main\n"); }      // A Lisp program contains a sequence of at least one expression
+axiom:        exprSeq                           { ; }      // A Lisp program contains a sequence of at least one expression
             ;
 
 
 exprSeq:      expression1                       { ; }      // level 1 expressions must exclude specific level 2 expressions. ToDo in the Future
                  r_exprSeq                      { ; }
             ;
-
-lista_argumentos:  IDENTIF lista_argumentos  { ; }
-                   | /* vacio */      { ; }
-                   ;
-
 
 r_exprSeq:    exprSeq                           { ; }
             |  /* lambda */                     { ; }
@@ -102,7 +97,7 @@ expression1:  expression                        { ; }  // Lisp can evaluate arit
 
             /* REGLA PARA DEFUN GENÉRICO */
             | '(' DEFUN IDENTIF                                  { printf(" : %s ", $3.code); } 
-                '(' lista_argumentos ')' exprSeq ')'             { printf(" ; \n "); }
+                '(' ')' exprSeq ')'             { printf(" ; \n "); }
 
 // In real Lisp some expressions like if or Loop-While-Do are only permitted inside defun definitions (level 2 expressions) ==> Future ToDo
 // Level 1 and common expressions (arithmetic etc.) are also permitted inside a defun definition

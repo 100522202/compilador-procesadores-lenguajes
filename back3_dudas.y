@@ -59,7 +59,7 @@ typedef struct s_attr {
 
 
 %%                            // Section 3 Grammar - Semantic Actions
-axiom:        exprSeq                           { printf(" main\n"); }      // A Lisp program contains a sequence of at least one expression
+axiom:        exprSeq                           { ; }      // A Lisp program contains a sequence of at least one expression
             ;
 
 
