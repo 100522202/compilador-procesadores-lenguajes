@@ -1,21 +1,9 @@
+// Prueba basica 2 de printf 
 #include <stdio.h>
-
-int a ;
-int b ;
 
 main () 
 {
-	a = 10 ;
-	
-	while (a > 0) {
-		printf ("%d", a) ;
-		if (a % 2 == 0) { 
-			puts (" es par ") ;
-		} else {
-			puts (" es impar ") ;
-		}
-		a = a - 1 ;
-	} 
+	printf ("El texto no se imprime %d %s %d", 123+1, " el texto se imprime ", 124+1) ;
 }
 
 //@ (main)

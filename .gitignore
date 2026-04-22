@@ -3,4 +3,12 @@ back3.tab.c
 trad3.tab.c
 trad3.tab.h
 back3.tab.h
+back
+trad
+back.tab.c
+trad.tab.c
+trad.tab.h
+back.tab.h
+prueba.l
+prueba.c
 /tests-2026/

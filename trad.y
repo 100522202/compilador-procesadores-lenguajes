@@ -310,10 +310,6 @@ sentencia:
                   | PRINTF '(' STRING ',' lista_argumentos ')'               {
                                                                             $$.code = translate_printf ($3.code, $5.code) ;
                                                                         }
-                  | PRINTF '(' expresion ')'                                 {
-                                                                            sprintf (temp, "(princ %s)", $3.code) ;
-                                                                            $$.code = gen_code (temp) ;
-                                                                        }
                   | IDENTIF '(' lista_expr ')'                               {
                                                                             if (strlen($3.code) == 0)
                                                                                 sprintf (temp, "(%s)", $1.code) ;
@@ -396,7 +392,7 @@ expresion:
 
 expr_or:
                     expr_and                                                 { $$ = $1 ; }
-                  | expr_and OR expr_or                                      {
+                  | expr_or OR expr_and                                      {
                                                                             sprintf (temp, "(or %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
@@ -404,7 +400,7 @@ expr_or:
 
 expr_and:
                     expr_igualdad                                            { $$ = $1 ; }
-                  | expr_igualdad AND expr_and                               {
+                  | expr_and AND expr_igualdad                               {
                                                                             sprintf (temp, "(and %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
@@ -412,11 +408,11 @@ expr_and:
 
 expr_igualdad:
                     expr_relacional                                          { $$ = $1 ; }
-                  | expr_relacional IGUAL expr_igualdad                      {
+                  | expr_igualdad IGUAL expr_relacional                      {
                                                                             sprintf (temp, "(= %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
-                  | expr_relacional DIFERENTE expr_igualdad                  {
+                  | expr_igualdad DIFERENTE expr_relacional                  {
                                                                             sprintf (temp, "(/= %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
@@ -424,19 +420,19 @@ expr_igualdad:
 
 expr_relacional:
                     expr_aditiva                                             { $$ = $1 ; }
-                  | expr_aditiva '>' expr_relacional                         {
+                  | expr_relacional '>' expr_aditiva                         {
                                                                             sprintf (temp, "(> %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
-                  | expr_aditiva '<' expr_relacional                         {
+                  | expr_relacional '<' expr_aditiva                         {
                                                                             sprintf (temp, "(< %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
-                  | expr_aditiva MAYOR_IGUAL expr_relacional                 {
+                  | expr_relacional MAYOR_IGUAL expr_aditiva                 {
                                                                             sprintf (temp, "(>= %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
-                  | expr_aditiva MENOR_IGUAL expr_relacional                 {
+                  | expr_relacional MENOR_IGUAL expr_aditiva                 {
                                                                             sprintf (temp, "(<= %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
@@ -444,11 +440,11 @@ expr_relacional:
 
 expr_aditiva:
                     expr_multiplicativa                                      { $$ = $1 ; }
-                  | expr_multiplicativa '+' expr_aditiva                     {
+                  | expr_aditiva '+' expr_multiplicativa                     {
                                                                             sprintf (temp, "(+ %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
-                  | expr_multiplicativa '-' expr_aditiva                     {
+                  | expr_aditiva '-' expr_multiplicativa                     {
                                                                             sprintf (temp, "(- %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
@@ -456,15 +452,15 @@ expr_aditiva:
 
 expr_multiplicativa:
                     expr_unaria                                              { $$ = $1 ; }
-                  | expr_unaria '*' expr_multiplicativa                      {
+                  | expr_multiplicativa '*' expr_unaria                      {
                                                                             sprintf (temp, "(* %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
-                  | expr_unaria '/' expr_multiplicativa                      {
+                  | expr_multiplicativa '/' expr_unaria                      {
                                                                             sprintf (temp, "(/ %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
-                  | expr_unaria '%' expr_multiplicativa                      {
+                  | expr_multiplicativa '%' expr_unaria                      {
                                                                             sprintf (temp, "(mod %s %s)", $1.code, $3.code) ;
                                                                             $$.code = gen_code (temp) ;
                                                                         }
@@ -597,62 +593,16 @@ char *translate_printf (char *format, char *args)
     char result[16384] ;
     char piece[8192] ;
     char final_code[20000] ;
-    char literal[4096] ;
     char *cursor ;
     char *arg ;
     int npieces = 0 ;
-    int i = 0, j = 0 ;
+    (void) format ;
 
     result[0] = '\0' ;
-    literal[0] = '\0' ;
     cursor = args ;
 
-    while (format[i] != '\0') {
-
-        if (format[i] == '%' && format[i + 1] != '\0') {
-
-            if (j > 0) {
-                literal[j] = '\0' ;
-                sprintf (piece, "(princ \"%s\")", escape_lisp_string (literal)) ;
-                add_printf_piece (result, &npieces, piece) ;
-                j = 0 ;
-            }
-
-            arg = next_printf_arg (&cursor) ;
-            if (arg != NULL) {
-                sprintf (piece, "(princ %s)", arg) ;
-                add_printf_piece (result, &npieces, piece) ;
-            }
-
-            i += 2 ;
-        }
-        else if (format[i] == '\\' && format[i + 1] == 'n') {
-
-            literal[j++] = '\n' ;
-            i += 2 ;
-        }
-        else if (format[i] == '\\' && format[i + 1] == 't') {
-
-            literal[j++] = '\t' ;
-            i += 2 ;
-        }
-        else {
-
-            literal[j++] = format[i] ;
-            i++ ;
-        }
-
-        if (j >= 4090) {
-            literal[j] = '\0' ;
-            sprintf (piece, "(princ \"%s\")", escape_lisp_string (literal)) ;
-            add_printf_piece (result, &npieces, piece) ;
-            j = 0 ;
-        }
-    }
-
-    if (j > 0) {
-        literal[j] = '\0' ;
-        sprintf (piece, "(princ \"%s\")", escape_lisp_string (literal)) ;
+    while ((arg = next_printf_arg (&cursor)) != NULL) {
+        sprintf (piece, "(princ %s)", arg) ;
         add_printf_piece (result, &npieces, piece) ;
     }
 
