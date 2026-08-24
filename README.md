@@ -4,7 +4,7 @@ Repositorio correspondiente a la **Práctica Final de Procesadores de Lenguajes 
 
 ---
 
-## 📌 Descripción del Proyecto
+## Descripción del Proyecto
 
 Diseño e implementación de un compilador/intérprete en **C** haciendo uso de las herramientas de generación automática de analizadores **Flex (Lex)** y **Bison (Yacc)**.
 
@@ -16,7 +16,7 @@ El sistema realiza:
 
 ---
 
-## 🛠️ Tecnologías Utilizadas
+## Tecnologías Utilizadas
 
 * **Lenguaje:** C (estándar C11/GNU11).
 * **Herramientas de Análisis:** Flex (analizador léxico) y Bison (analizador sintáctico).
@@ -24,7 +24,7 @@ El sistema realiza:
 
 ---
 
-## 🚀 Compilación y Ejecución
+## Compilación y Ejecución
 
 ```bash
 # Compilar el proyecto
